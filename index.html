@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English Adaptive Learning</title>
-    <!-- React & Babel Standalone -->
+    <!-- React & Babel Standalone (Pasti Jalan di GitHub Pages) -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS untuk Desain Antarmuka -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -18,9 +18,9 @@
         const { useState, useEffect } = React;
 
         function App() {
-            // Menyimpan progres level secara lokal di browser kamu
+            // Membaca dan mengunci progress level di memori lokal browser (LocalStorage)
             const [user, setUser] = useState(() => {
-                const saved = localStorage.getItem("english_user_local");
+                const saved = localStorage.getItem("english_user_perfect");
                 return saved ? JSON.parse(saved) : { level: "Beginner", exp: 0, goal: "General Conversation" };
             });
 
@@ -29,52 +29,96 @@
             const [currentIdx, setCurrentIdx] = useState(0);
             const [score, setScore] = useState(0);
 
-            // Bank data soal adaptif yang langsung dimuat instan tanpa jeda jaringan
-            const localQuestions = {
+            // Database Bank Soal Adaptif Internal (Instan Tanpa Delay Jaringan Server)
+            const localDatabase = {
                 Beginner: [
-                    { question: "Choose the correct sentence for daily greeting:", options: ["She go to school yesterday", "He goes to office every day", "They is learning English", "I are a student"], correctAnswer: "He goes to office every day" },
-                    { question: "What is the plural form of 'Child'?", options: ["Childs", "Children", "Childrens", "Childes"], correctAnswer: "Children" },
-                    { question: "I ______ a professional computer teacher.", options: ["am", "is", "are", "be"], correctAnswer: "am" }
+                    { 
+                        question: "Choose the correct sentence for daily greeting:", 
+                        options: ["She go to school yesterday", "He goes to office every day", "They is learning English", "I are a student"], 
+                        correctAnswer: "He goes to office every day" 
+                    },
+                    { 
+                        question: "What is the plural form of 'Child'?", 
+                        options: ["Childs", "Children", "Childrens", "Childes"], 
+                        correctAnswer: "Children" 
+                    },
+                    { 
+                        question: "I ______ a professional computer teacher.", 
+                        options: ["am", "is", "are", "be"], 
+                        correctAnswer: "am" 
+                    }
                 ],
                 Intermediate: [
-                    { question: "If the server ______ down tomorrow, we will lose our student login data.", options: ["goes", "go", "went", "going"], correctAnswer: "goes" },
-                    { question: "He is looking forward to ______ his web development portfolio next week.", options: ["deploy", "deployed", "deploying", "deploys"], correctAnswer: "deploying" },
-                    { question: "By the time the principal arrived, the teacher ______ the classroom presentation.", options: ["finish", "have finished", "had finished", "will finish"], correctAnswer: "had finished" }
+                    { 
+                        question: "If the server ______ down tomorrow, we will lose our student login data.", 
+                        options: ["goes", "go", "went", "going"], 
+                        correctAnswer: "goes" 
+                    },
+                    { 
+                        question: "He is looking forward to ______ his web development portfolio next week.", 
+                        options: ["deploy", "deployed", "deploying", "deploys"], 
+                        correctAnswer: "deploying" 
+                    },
+                    { 
+                        question: "By the time the principal arrived, the teacher ______ the classroom presentation.", 
+                        options: ["finish", "have finished", "had finished", "will finish"], 
+                        correctAnswer: "had finished" 
+                    }
                 ],
                 Expert: [
-                    { question: "Hardly ______ entered the laboratory when the electricity went out.", options: ["had he", "he had", "does he", "has he"], correctAnswer: "had he" },
-                    { question: "She implemented the new curriculum with such eloquence ______ all instructors were instantly inspired.", options: ["that", "so", "as", "than"], correctAnswer: "that" },
-                    { question: "Were it not for your sophisticated algorithm, I ______ accomplished this automation website.", options: ["will not have", "would not have", "cannot have", "should not"], correctAnswer: "would not have" }
+                    { 
+                        question: "Hardly ______ entered the laboratory when the electricity went out.", 
+                        options: ["had he", "he had", "does he", "has he"], 
+                        correctAnswer: "had he" 
+                    },
+                    { 
+                        question: "She implemented the new curriculum with such eloquence ______ all instructors were instantly inspired.", 
+                        options: ["that", "so", "as", "than"], 
+                        correctAnswer: "that" 
+                    },
+                    { 
+                        question: "Were it not for your sophisticated algorithm, I ______ accomplished this automation website.", 
+                        options: ["will not have", "would not have", "cannot have", "should not"], 
+                        correctAnswer: "would not have" 
+                    }
                 ]
             };
 
-            // Dipanggil setiap kali level pengguna berubah
+            // Berjalan otomatis setiap ada perubahan level
             useEffect(() => {
-                localStorage.setItem("english_user_local", JSON.stringify(user));
-                
-                // Ambil soal berdasarkan level saat ini, jika error arahkan ke Beginner
-                const currentQuestions = localQuestions[user.level] || localQuestions["Beginner"];
-                setQuiz(currentQuestions);
+                localStorage.setItem("english_user_perfect", JSON.stringify(user));
+                const activeQuestions = localDatabase[user.level] || localDatabase["Beginner"];
+                setQuiz(activeQuestions);
                 setLoading(false);
             }, [user.level]);
 
-            const handleAnswer = (ans) => {
+            // Fungsi klik jawaban - Dioptimalkan agar merespons di bawah 1 milidetik
+            const handleAnswer = (selectedOption) => {
+                let currentQuestions = localDatabase[user.level] || localDatabase["Beginner"];
                 let newScore = score;
-                if (ans === quiz[currentIdx].correctAnswer) newScore++;
+                
+                if (selectedOption === currentQuestions[currentIdx].correctAnswer) {
+                    newScore++;
+                }
                 setScore(newScore);
 
-                if (currentIdx + 1 < quiz.length) {
+                if (currentIdx + 1 < currentQuestions.length) {
                     setCurrentIdx(currentIdx + 1);
                 } else {
-                    // Evaluasi kenaikan tingkat otomatis jika menjawab semua dengan benar
+                    // Evaluasi otomatisasi naik tingkat tingkat kelulusan 100% benar
                     let nextLevel = user.level;
-                    if (newScore === quiz.length) {
+                    if (newScore === currentQuestions.length) {
                         if (user.level === "Beginner") nextLevel = "Intermediate";
                         else if (user.level === "Intermediate") nextLevel = "Expert";
                     }
 
-                    setUser(prev => ({ ...prev, level: nextLevel, exp: prev.exp + 50 }));
-                    alert(`Kuis Selesai!\nSkor Kamu: ${newScore}/${quiz.length}\nLevel Kamu Sekarang: ${nextLevel}`);
+                    setUser(prev => ({
+                        ...prev,
+                        level: nextLevel,
+                        exp: prev.exp + 50
+                    }));
+
+                    alert(`Sesi Selesai!\nSkor Anda: ${newScore}/${currentQuestions.length}\nLevel Anda Sekarang: ${nextLevel}`);
                     setCurrentIdx(0);
                     setScore(0);
                 }
@@ -91,7 +135,7 @@
 
             return (
                 <div class="max-w-md mx-auto mt-16 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-                    {/* Header Modul */}
+                    {/* Atas: Kartu Status Progress Pengaruh */}
                     <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-inner">
                         <div>
                             <p class="text-xs text-blue-100 uppercase font-semibold">Target Belajar</p>
@@ -99,19 +143,30 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-xs bg-white/20 px-2 py-1 rounded font-mono">EXP: {user.exp}</span>
-                            <span class="bg-yellow-400 text-slate-900 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide">{user.level}</span>
+                            <span class="bg-yellow-400 text-slate-900 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide shadow-sm">
+                                {user.level}
+                            </span>
                         </div>
                     </div>
                     
-                    {/* Kotak Pertanyaan */}
+                    {/* Progress Bar Indikator Soal */}
+                    <div class="w-full bg-gray-100 h-1.5">
+                        <div class="bg-blue-500 h-1.5 transition-all duration-300" style={{ width: `${((currentIdx) / quiz.length) * 100}%` }}></div>
+                    </div>
+
+                    {/* Konten Utama Kuis */}
                     <div class="p-6">
                         <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Pertanyaan {currentIdx + 1} dari {quiz.length}</span>
                         <h2 class="text-lg font-bold text-gray-800 mt-1 mb-6 leading-snug">{quiz[currentIdx].question}</h2>
                         
-                        {/* Pilihan Jawaban */}
+                        {/* List Pilihan Jawaban */}
                         <div class="space-y-3">
                             {quiz[currentIdx].options.map((opt, i) => (
-                                <button key={i} onClick={() => handleAnswer(opt)} class="w-full p-4 text-left border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 font-medium text-gray-700 transition shadow-sm flex items-center gap-3 text-sm">
+                                <button 
+                                    key={i} 
+                                    onClick={() => handleAnswer(opt)} 
+                                    class="w-full p-4 text-left border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100 font-medium text-gray-700 transition duration-75 shadow-sm flex items-center gap-3 text-sm"
+                                >
                                     <span class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
                                     <span class="flex-1">{opt}</span>
                                 </button>
