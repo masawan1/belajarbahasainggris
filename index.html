@@ -8,11 +8,21 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/generative-ai": "https://esm.run/@google/generative-ai"
+        }
+      }
+    </script>
 </head>
 <body class="bg-gray-50 text-gray-800">
     <div id="root"></div>
 
-    <script type="text/babel">
+    <script type="module" babel>
+        // Import Google Gen AI langsung secara modul browser resmi
+        import { GoogleGenAI } from "@google/generative-ai";
+
         const { useState, useEffect } = React;
 
         // API Key Gemini milikmu
@@ -32,57 +42,35 @@
 
             useEffect(() => {
                 localStorage.setItem("english_user", JSON.stringify(user));
-                loadQuiz(user.level, user.goal);
+                loadQuizSDK(user.level, user.goal);
             }, [user.level]);
 
-            const loadQuiz = async (level, goal) => {
+            // Pemanggilan Resmi menggunakan Google AI SDK Browser (Bebas Hambatan CORS)
+            const loadQuizSDK = async (level, goal) => {
                 setLoading(true);
                 setError("");
-                
-                // Endpoint asli Gemini
-                const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-                
-                const prompt = `Generate 3 multiple-choice questions for an English learner at '${level}' level with focus on '${goal}'. ` +
-                    `Return STRICTLY JSON format matching structure: { "questions": [ { "question": "The question", "options": ["A", "B", "C", "D"], "correctAnswer": "The exact correct option" } ] }. Do not include markdown formatting.`;
-
-                const payload = { 
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { responseMimeType: "application/json" }
-                };
-
-                // Menembak lewat AllOrigins Proxy gratis agar lolos sensor CORS Google
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
                 try {
-                    const res = await fetch(proxyUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        body: new URLSearchParams({
-                            reqMethod: "POST",
-                            reqHeaders: JSON.stringify({ "Content-Type": "application/json" }),
-                            reqBody: JSON.stringify(payload)
-                        })
+                    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+                    const model = ai.getGenerativeModel({ 
+                        model: "gemini-1.5-flash",
+                        generationConfig: { responseMimeType: "application/json" } // Mengunci output wajib JSON
                     });
-                    
-                    if (!res.ok) throw new Error("Terjadi gangguan pada jalur proxy.");
-                    
-                    const proxyData = await res.json();
-                    
-                    // AllOrigins membungkus respon asli di dalam properti 'contents' berbentuk string
-                    const geminiRes = JSON.parse(proxyData.contents);
-                    
-                    if (geminiRes.error) {
-                        throw new Error(geminiRes.error.message || "Gemini memblokir akses browser.");
-                    }
 
-                    const rawText = geminiRes.candidates[0].content.parts[0].text;
-                    const quizData = JSON.parse(rawText.trim());
+                    const prompt = `Generate exactly 3 multiple-choice questions for an English learner at '${level}' level with focus on '${goal}'. 
+                    Return output STRICTLY in JSON matching this structure: 
+                    { "questions": [ { "question": "The text", "options": ["A", "B", "C", "D"], "correctAnswer": "The exact correct option match" } ] }`;
+
+                    const result = await model.generateContent(prompt);
+                    const response = await result.response;
+                    const text = response.text();
                     
+                    const quizData = JSON.parse(text.trim());
                     setQuiz(quizData.questions);
                     setLoading(false);
                 } catch (err) {
                     console.error(err);
-                    setError("Gagal memuat kuis dari AI. Jalur koneksi diblokir atau kuota habis.");
+                    setError("Gagal merancang materi otomatis via Google SDK. Coba periksa koneksi internet Anda.");
                     setLoading(false);
                 }
             };
@@ -104,7 +92,7 @@
                     }
 
                     setUser(prev => ({ ...prev, level: nextLevel, exp: prev.exp + 50 }));
-                    alert(`Kuis Selesai! Skor: ${newScore}/${quiz.length}\nLevel kamu sekarang: ${nextLevel}`);
+                    alert(`Kuis Selesai! Skor Kamu: ${newScore}/${quiz.length}\nLevel Berubah Menjadi: ${nextLevel}`);
                     setCurrentIdx(0);
                     setScore(0);
                 }
@@ -114,12 +102,12 @@
                 return (
                     <div class="p-10 text-center">
                         <p class="text-red-500 font-bold mb-4">{error}</p>
-                        <button onClick={() => loadQuiz(user.level, user.goal)} class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Coba Lagi</button>
+                        <button onClick={() => loadQuizSDK(user.level, user.goal)} class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Coba Lagi</button>
                     </div>
                 );
             }
             
-            if (loading) return <div class="p-10 text-center font-medium animate-pulse text-gray-600">🤖 AI sedang merancang soal level {user.level}...</div>;
+            if (loading) return <div class="p-10 text-center font-medium animate-pulse text-gray-600">🤖 SDK Google resmi sedang memproses pembuatan soal level {user.level}...</div>;
 
             return (
                 <div class="max-w-md mx-auto mt-16 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
