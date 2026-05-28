@@ -35,12 +35,12 @@
                 loadQuizDirect(user.level, user.goal);
             }, [user.level]);
 
-            // MENEMBAK API GEMINI LANGSUNG MENGGUNAKAN FETCH BAWAAN BROWSER (ANTI-BLOKIR SCRIPT)
             const loadQuizDirect = async (level, goal) => {
                 setLoading(true);
                 setError("");
 
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+                // FIX: MENGUBAH v1beta MENJADI v1 AGAR DIKENALI OLEH MODEL GEMINI-1.5-FLASH
+                const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
                 const prompt = `Generate exactly 3 multiple-choice questions for an English learner at '${level}' level with focus on '${goal}'. 
                 Return output STRICTLY in JSON format matching this structure: 
@@ -73,7 +73,7 @@
 
                     let rawText = data.candidates[0].content.parts[0].text;
                     
-                    // Bersihkan teks jika AI bandel menyertakan markdown backticks
+                    // Bersihkan teks jikalau AI tetap menyertakan markdown backticks secara otomatis
                     rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
                     
                     const quizData = JSON.parse(rawText);
@@ -81,7 +81,7 @@
                     setLoading(false);
                 } catch (err) {
                     console.error(err);
-                    setError(`Gagal memuat soal: ${err.message}. Pastikan koneksi internet aman.`);
+                    setError(`Gagal memuat soal: ${err.message}.`);
                     setLoading(false);
                 }
             };
@@ -146,7 +146,7 @@
                         
                         <div class="space-y-3">
                             {quiz[currentIdx].options.map((opt, i) => (
-                                <button key={i} onClick={() => handleAnswer(opt)} class="w-full p-4 text-left border rounded-xl hover:bg-blue-50 hover:border-blue-300 font-medium text-gray-700 transition shadow-sm flex items-center gap-3 text-sm">
+                                <button key={i} onClick={() => handleAnswer(opt)} class="w-full p-4 text-left border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 font-medium text-gray-700 transition shadow-sm flex items-center gap-3 text-sm">
                                     <span class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
                                     <span class="flex-1">{opt}</span>
                                 </button>
