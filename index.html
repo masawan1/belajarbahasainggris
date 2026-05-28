@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English Adaptive Learning</title>
-    <!-- React & Babel Standalone (Pasti Jalan di GitHub Pages) -->
+    <!-- React & Babel Standalone -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Tailwind CSS untuk Desain Antarmuka -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -18,83 +18,76 @@
         const { useState, useEffect } = React;
 
         function App() {
-            // Membaca dan mengunci progress level di memori lokal browser (LocalStorage)
+            // State Progress User
             const [user, setUser] = useState(() => {
-                const saved = localStorage.getItem("english_user_perfect");
+                const saved = localStorage.getItem("english_user_complete");
                 return saved ? JSON.parse(saved) : { level: "Beginner", exp: 0, goal: "General Conversation" };
             });
 
+            // Navigasi Halaman: 'quiz' atau 'study'
+            const [activeTab, setActiveTab] = useState("quiz"); 
+            
             const [quiz, setQuiz] = useState([]);
-            const [loading, setLoading] = useState(true);
             const [currentIdx, setCurrentIdx] = useState(0);
             const [score, setScore] = useState(0);
 
-            // Database Bank Soal Adaptif Internal (Instan Tanpa Delay Jaringan Server)
-            const localDatabase = {
+            // 1. DATABASE KUIS LOCAL
+            const quizDatabase = {
                 Beginner: [
-                    { 
-                        question: "Choose the correct sentence for daily greeting:", 
-                        options: ["She go to school yesterday", "He goes to office every day", "They is learning English", "I are a student"], 
-                        correctAnswer: "He goes to office every day" 
-                    },
-                    { 
-                        question: "What is the plural form of 'Child'?", 
-                        options: ["Childs", "Children", "Childrens", "Childes"], 
-                        correctAnswer: "Children" 
-                    },
-                    { 
-                        question: "I ______ a professional computer teacher.", 
-                        options: ["am", "is", "are", "be"], 
-                        correctAnswer: "am" 
-                    }
+                    { question: "Choose the correct sentence for daily greeting:", options: ["She go to school yesterday", "He goes to office every day", "They is learning English", "I are a student"], correctAnswer: "He goes to office every day" },
+                    { question: "What is the plural form of 'Child'?", options: ["Childs", "Children", "Childrens", "Childes"], correctAnswer: "Children" },
+                    { question: "I ______ a professional computer teacher.", options: ["am", "is", "are", "be"], correctAnswer: "am" }
                 ],
                 Intermediate: [
-                    { 
-                        question: "If the server ______ down tomorrow, we will lose our student login data.", 
-                        options: ["goes", "go", "went", "going"], 
-                        correctAnswer: "goes" 
-                    },
-                    { 
-                        question: "He is looking forward to ______ his web development portfolio next week.", 
-                        options: ["deploy", "deployed", "deploying", "deploys"], 
-                        correctAnswer: "deploying" 
-                    },
-                    { 
-                        question: "By the time the principal arrived, the teacher ______ the classroom presentation.", 
-                        options: ["finish", "have finished", "had finished", "will finish"], 
-                        correctAnswer: "had finished" 
-                    }
+                    { question: "If the server ______ down tomorrow, we will lose our student login data.", options: ["goes", "go", "went", "going"], correctAnswer: "goes" },
+                    { question: "He is looking forward to ______ his web development portfolio next week.", options: ["deploy", "deployed", "deploying", "deploys"], correctAnswer: "deploying" },
+                    { question: "By the time the principal arrived, the teacher ______ the classroom presentation.", options: ["finish", "have finished", "had finished", "will finish"], correctAnswer: "had finished" }
                 ],
                 Expert: [
-                    { 
-                        question: "Hardly ______ entered the laboratory when the electricity went out.", 
-                        options: ["had he", "he had", "does he", "has he"], 
-                        correctAnswer: "had he" 
-                    },
-                    { 
-                        question: "She implemented the new curriculum with such eloquence ______ all instructors were instantly inspired.", 
-                        options: ["that", "so", "as", "than"], 
-                        correctAnswer: "that" 
-                    },
-                    { 
-                        question: "Were it not for your sophisticated algorithm, I ______ accomplished this automation website.", 
-                        options: ["will not have", "would not have", "cannot have", "should not"], 
-                        correctAnswer: "would not have" 
-                    }
+                    { question: "Hardly ______ entered the laboratory when the electricity went out.", options: ["had he", "he had", "does he", "has he"], correctAnswer: "had he" },
+                    { question: "She implemented the new curriculum with such eloquence ______ all instructors were instantly inspired.", options: ["that", "so", "as", "than"], correctAnswer: "that" },
+                    { question: "Were it not for your sophisticated algorithm, I ______ accomplished this automation website.", options: ["will not have", "would not have", "cannot have", "should not"], correctAnswer: "would not have" }
                 ]
             };
 
-            // Berjalan otomatis setiap ada perubahan level
+            // 2. DATABASE MATERI BELAJAR (STUDY MATERIAL) BASED ON LEVEL
+            const studyDatabase = {
+                Beginner: {
+                    title: "Dasar Percakapan & Present Tense",
+                    reading: "Hello! My name is Alex. Every day, I go to the office at 8 AM. I am a teacher, and I love sharing knowledge with my students. In daily English, we use 'Simple Present Tense' to talk about our regular habits or facts.",
+                    tips: [
+                        "Gunakan 'am' hanya untuk subjek 'I'.",
+                        "Untuk kata kerja subjek He/She/It, tambahkan akhiran s/es (contoh: He goes, She likes).",
+                        "Children adalah bentuk jamak resmi dari Child (tidak perlu ditambah 's' lagi)."
+                    ]
+                },
+                Intermediate: {
+                    title: "Conditional Clauses & Professional English",
+                    reading: "In professional environments, predicting technical risks is crucial. For example: 'If the server goes down tomorrow, we will lose our student login data.' This structure is called Conditional Type 1 (Real Possibility). Additionally, phrases like 'look forward to' must always be followed by a Verb-ing.",
+                    tips: [
+                        "Struktur Conditional Type 1: If + Simple Present, Will + Verb 1.",
+                        "Frasa 'look forward to' wajib diikuti Verb-ing (contoh: looking forward to deploying).",
+                        "Past Perfect (had + V3) digunakan untuk aksi yang sudah selesai sebelum aksi lain terjadi di masa lalu."
+                    ]
+                },
+                Expert: {
+                    title: "Inversion Structures & Advanced Eloquence",
+                    reading: "Advanced English features sophisticated grammar structures such as Inversion to provide emphasis. Consider this sentence: 'Hardly had he entered the laboratory when the electricity went out.' Furthermore, hypothetical structures like 'Were it not for...' are widely utilized in professional documentation to express formal conditionals without using 'if'.",
+                    tips: [
+                        "Inversion menggunakan struktur kata tanya setelah kata negatif/semi-negatif (Hardly had he..., No sooner had she...).
+                        "Struktur formal tanpa 'if': 'Were it not for your help' sama maknanya dengan 'If it were not for your help'.",
+                        "Gunakan kata hubung 'such + noun + that' untuk menyatakan hubungan sebab-akibat yang kuat."
+                    ]
+                }
+            };
+
             useEffect(() => {
-                localStorage.setItem("english_user_perfect", JSON.stringify(user));
-                const activeQuestions = localDatabase[user.level] || localDatabase["Beginner"];
-                setQuiz(activeQuestions);
-                setLoading(false);
+                localStorage.setItem("english_complete_user", JSON.stringify(user));
+                setQuiz(quizDatabase[user.level] || quizDatabase["Beginner"]);
             }, [user.level]);
 
-            // Fungsi klik jawaban - Dioptimalkan agar merespons di bawah 1 milidetik
             const handleAnswer = (selectedOption) => {
-                let currentQuestions = localDatabase[user.level] || localDatabase["Beginner"];
+                const currentQuestions = quizDatabase[user.level] || quizDatabase["Beginner"];
                 let newScore = score;
                 
                 if (selectedOption === currentQuestions[currentIdx].correctAnswer) {
@@ -105,7 +98,6 @@
                 if (currentIdx + 1 < currentQuestions.length) {
                     setCurrentIdx(currentIdx + 1);
                 } else {
-                    // Evaluasi otomatisasi naik tingkat tingkat kelulusan 100% benar
                     let nextLevel = user.level;
                     if (newScore === currentQuestions.length) {
                         if (user.level === "Beginner") nextLevel = "Intermediate";
@@ -118,60 +110,108 @@
                         exp: prev.exp + 50
                     }));
 
-                    alert(`Sesi Selesai!\nSkor Anda: ${newScore}/${currentQuestions.length}\nLevel Anda Sekarang: ${nextLevel}`);
+                    alert(`Kuis Selesai!\nSkor Anda: ${newScore}/${currentQuestions.length}\nLevel Anda Sekarang: ${nextLevel}\n\nSistem otomatis mengalihkan Anda ke Ruang Belajar Materi Baru!`);
+                    
+                    // RESET KUIS & PINDAH KE HALAMAN BELAJAR MATERI
                     setCurrentIdx(0);
                     setScore(0);
+                    setActiveTab("study"); 
                 }
             };
 
-            if (loading) {
-                return (
-                    <div class="flex flex-col items-center justify-center min-h-screen p-6">
-                        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
-                        <p class="text-center text-gray-600 font-medium">Menyiapkan modul kuis...</p>
-                    </div>
-                );
-            }
+            const currentStudy = studyDatabase[user.level] || studyDatabase["Beginner"];
 
             return (
-                <div class="max-w-md mx-auto mt-16 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-                    {/* Atas: Kartu Status Progress Pengaruh */}
-                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-inner">
+                <div className="max-w-md mx-auto mt-12 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 mb-20">
+                    {/* ATAS: DASHBOARD STATUS USER */}
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-inner">
                         <div>
-                            <p class="text-xs text-blue-100 uppercase font-semibold">Target Belajar</p>
-                            <h3 class="text-sm font-bold truncate max-w-[180px]">{user.goal}</h3>
+                            <p className="text-xs text-blue-100 uppercase font-semibold">Target Belajar</p>
+                            <h3 className="text-sm font-bold truncate max-w-[180px]">{user.goal}</h3>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs bg-white/20 px-2 py-1 rounded font-mono">EXP: {user.exp}</span>
-                            <span class="bg-yellow-400 text-slate-900 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs bg-white/20 px-2 py-1 rounded font-mono">EXP: {user.exp}</span>
+                            <span className="bg-yellow-400 text-slate-900 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide shadow-sm">
                                 {user.level}
                             </span>
                         </div>
                     </div>
-                    
-                    {/* Progress Bar Indikator Soal */}
-                    <div class="w-full bg-gray-100 h-1.5">
-                        <div class="bg-blue-500 h-1.5 transition-all duration-300" style={{ width: `${((currentIdx) / quiz.length) * 100}%` }}></div>
-                    </div>
 
-                    {/* Konten Utama Kuis */}
-                    <div class="p-6">
-                        <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Pertanyaan {currentIdx + 1} dari {quiz.length}</span>
-                        <h2 class="text-lg font-bold text-gray-800 mt-1 mb-6 leading-snug">{quiz[currentIdx].question}</h2>
-                        
-                        {/* List Pilihan Jawaban */}
-                        <div class="space-y-3">
-                            {quiz[currentIdx].options.map((opt, i) => (
-                                <button 
-                                    key={i} 
-                                    onClick={() => handleAnswer(opt)} 
-                                    class="w-full p-4 text-left border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100 font-medium text-gray-700 transition duration-75 shadow-sm flex items-center gap-3 text-sm"
-                                >
-                                    <span class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
-                                    <span class="flex-1">{opt}</span>
-                                </button>
-                            ))}
+                    {/* KONTEN BERDASARKAN TAB HALAMAN AKTIF */}
+                    {activeTab === "quiz" ? (
+                        <div>
+                            {/* Progress Bar Kuis */}
+                            <div className="w-full bg-gray-100 h-1.5">
+                                <div className="bg-blue-500 h-1.5 transition-all duration-300" style={{ width: `${(currentIdx / (quiz.length || 1)) * 100}%` }}></div>
+                            </div>
+                            {/* Tampilan Kuis */}
+                            <div className="p-6">
+                                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Evaluasi Kuis - Pertanyaan {currentIdx + 1} dari {quiz.length}</span>
+                                <h2 className="text-lg font-bold text-gray-800 mt-1 mb-6 leading-snug">{quiz[currentIdx]?.question}</h2>
+                                <div className="space-y-3">
+                                    {quiz[currentIdx]?.options.map((opt, i) => (
+                                        <button 
+                                            key={i} 
+                                            onClick={() => handleAnswer(opt)} 
+                                            className="w-full p-4 text-left border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100 font-medium text-gray-700 transition duration-75 shadow-sm flex items-center gap-3 text-sm"
+                                        >
+                                            <span className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
+                                            <span className="flex-1">{opt}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
+                    ) : (
+                        /* TAMPILAN RUANG BELAJAR (MATERI LENGKAP) */
+                        <div className="p-6 space-y-6">
+                            <div>
+                                <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Materi Pelajaran - Level {user.level}</span>
+                                <h2 className="text-xl font-bold text-gray-800 mt-0.5">{currentStudy.title}</h2>
+                            </div>
+
+                            <div className="bg-amber-50/60 border border-amber-100 rounded-xl p-4">
+                                <h4 className="text-xs font-bold text-amber-800 uppercase tracking-wide mb-1.5">📝 Reading Section</h4>
+                                <p className="text-sm text-gray-700 leading-relaxed italic">"{currentStudy.reading}"</p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide">💡 Key Grammar Tips:</h4>
+                                <ul className="space-y-2">
+                                    {currentStudy.tips.map((tip, idx) => (
+                                        <li key={idx} className="text-xs text-gray-600 flex items-start gap-2 leading-relaxed">
+                                            <span className="text-blue-500 font-bold">•</span>
+                                            <span>{tip}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            <button 
+                                onClick={() => setActiveTab("quiz")} 
+                                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl text-sm shadow-md hover:from-blue-700 hover:to-indigo-700 transition"
+                            >
+                                Uji Kemampuan (Mulai Kuis Lagi)
+                            </button>
+                        </div>
+                    )}
+
+                    {/* MENU NAVIGASI BAWAH (BOTTOM NAVIGATION BAR) */}
+                    <div className="border-t border-gray-100 bg-gray-50/80 backdrop-blur flex justify-around p-2">
+                        <button 
+                            onClick={() => setActiveTab("quiz")}
+                            className={`flex flex-col items-center gap-1 py-1 px-4 rounded-lg transition text-xs font-bold ${activeTab === 'quiz' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            <span>📝</span>
+                            <span>Mulai Kuis</span>
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab("study")}
+                            className={`flex flex-col items-center gap-1 py-1 px-4 rounded-lg transition text-xs font-bold ${activeTab === 'study' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            <span>📖</span>
+                            <span>Ruang Belajar</span>
+                        </button>
                     </div>
                 </div>
             );
