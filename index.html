@@ -15,9 +15,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // =========================================================================
-        // PENTING: TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT KAMU DI SINI
-        // =========================================================================
+        // URL Web App Google Apps Script asli milikmu
         const API_URL = "https://script.google.com/macros/s/AKfycbyRfxzjrB7ccMiMGuQ_XIozvVjvV2hUu_ZydV4MY-RX5H8x5nUzmPx4vSX-N6tQ2wmxqQ/exec"; 
         const USER_EMAIL = "user@example.com";
 
@@ -30,24 +28,27 @@
             const [score, setScore] = useState(0);
             const [errorMessage, setErrorMessage] = useState("");
 
-            // 1. Ambil Data User saat aplikasi pertama kali dibuka
-            useEffect(() => {
-                if (API_URL.includes("URL_WEB_APP")) {
-                    setErrorMessage("API_URL belum diganti! Silakan masukkan URL Google Apps Script kamu di index.html.");
-                    setLoading(false);
-                    return;
-                }
-
-                fetch(API_URL, {
+            // Fungsi pembantu untuk memformat request agar lolos sensor CORS Google
+            const sendRequest = async (payload) => {
+                const response = await fetch(API_URL, {
                     method: "POST",
                     mode: "cors",
-                    headers: { "Content-Type": "text/plain" }, // Menggunakan text/plain mencegah preflight CORS error di GAS
-                    body: JSON.stringify({ action: "getUser", email: USER_EMAIL })
-                })
-                .then(res => {
-                    if (!res.ok) throw new Error("Koneksi ke server gagal (Status: " + res.status + ")");
-                    return res.json();
-                })
+                    redirect: "follow", // Wajib karena Google Script melakukan redirect internal
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    body: new URLSearchParams({
+                        // Memasukkan data ke format e.postData.contents secara aman
+                        "text/plain": JSON.stringify(payload) 
+                    })
+                });
+                if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
+                return await response.json();
+            };
+
+            // 1. Ambil Data User saat aplikasi pertama kali dibuka
+            useEffect(() => {
+                sendRequest({ action: "getUser", email: USER_EMAIL })
                 .then(data => {
                     if (data.error) throw new Error(data.error);
                     setUser(data);
@@ -62,13 +63,7 @@
 
             // 2. Ambil Soal Kuis dari AI via Google Script
             const loadQuiz = (level, goal) => {
-                fetch(API_URL, {
-                    method: "POST",
-                    mode: "cors",
-                    headers: { "Content-Type": "text/plain" },
-                    body: JSON.stringify({ action: "getAIQuiz", level: level, goal: goal })
-                })
-                .then(res => res.json())
+                sendRequest({ action: "getAIQuiz", level: level, goal: goal })
                 .then(data => {
                     if (data.error) throw new Error(data.error);
                     if (!data.questions || data.questions.length === 0) throw new Error("Format kuis AI tidak valid.");
@@ -100,24 +95,17 @@
             // 3. Logika Naik Level Otomatis
             const evaluateLevel = (finalScore) => {
                 let newLevel = user.level;
-                // Jika benar semua, otomatis naik level belajarnya
                 if (finalScore === quiz.length) {
                     if (user.level === "Beginner") newLevel = "Intermediate";
                     else if (user.level === "Intermediate") newLevel = "Expert";
                 }
 
-                fetch(API_URL, {
-                    method: "POST",
-                    mode: "cors",
-                    headers: { "Content-Type": "text/plain" },
-                    body: JSON.stringify({ 
-                        action: "updateProgress", 
-                        email: USER_EMAIL, 
-                        newLevel: newLevel, 
-                        newExp: parseInt(user.exp) + 50 
-                    })
+                sendRequest({ 
+                    action: "updateProgress", 
+                    email: USER_EMAIL, 
+                    newLevel: newLevel, 
+                    newExp: parseInt(user.exp) + 50 
                 })
-                .then(res => res.json())
                 .then(data => {
                     if (data.error) throw new Error(data.error);
                     alert(`Sesi Selesai! Skor: ${finalScore}/${quiz.length}.\nLevel kamu saat ini: ${newLevel}`);
@@ -155,7 +143,7 @@
             return (
                 <div class="max-w-md mx-auto mt-16 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
                     {/* Header Progress */}
-                    <div class="bg-gradient-to-r自动 from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-inner">
+                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-inner">
                         <div>
                             <p class="text-xs text-blue-100 uppercase tracking-wider font-semibold">Target Belajar</p>
                             <h3 class="text-sm font-bold truncate max-w-[180px]">{user.goal}</h3>
