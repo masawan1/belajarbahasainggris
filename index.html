@@ -15,11 +15,10 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // API Key Gemini langsung ditembak di sini
+        // API Key Gemini milikmu
         const GEMINI_API_KEY = "AIzaSyBNQlALN-luJmkr8geG471TxvCgsuBbzlg"; 
 
         function App() {
-            // Mengambil progres dari memori browser, kalau belum ada diset otomatis ke Beginner
             const [user, setUser] = useState(() => {
                 const saved = localStorage.getItem("english_user");
                 return saved ? JSON.parse(saved) : { level: "Beginner", exp: 0, goal: "General Conversation" };
@@ -31,7 +30,6 @@
             const [score, setScore] = useState(0);
             const [error, setError] = useState("");
 
-            // Tiap kali level berubah, simpan status ke memori browser & generate kuis baru dari AI
             useEffect(() => {
                 localStorage.setItem("english_user", JSON.stringify(user));
                 loadQuiz(user.level, user.goal);
@@ -40,27 +38,35 @@
             const loadQuiz = async (level, goal) => {
                 setLoading(true);
                 setError("");
-                const url = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+                
+                // MENGGUNAKAN ENDPOINT TERBARU DAN MODEL FLASH YANG MENDUKUNG CLIENT-SIDE REQUEST
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
                 
                 const prompt = `Generate 3 multiple-choice questions for an English learner at '${level}' level with focus on '${goal}'. ` +
-                    `Return STRICTLY JSON format matching structure: { "questions": [ { "question": "The question", "options": ["A", "B", "C", "D"], "correctAnswer": "The exact correct option" } ] }. No markdown.`;
+                    `Return STRICTLY JSON format matching structure: { "questions": [ { "question": "The question", "options": ["A", "B", "C", "D"], "correctAnswer": "The exact correct option" } ] }.`;
 
                 try {
                     const res = await fetch(url, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                        body: JSON.stringify({ 
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: { 
+                                responseMimeType: "application/json" // Memaksa AI mengembalikan JSON murni
+                            }
+                        })
                     });
+                    
+                    if (!res.ok) throw new Error("API Google menolak request");
                     
                     const data = await res.json();
                     const rawText = data.candidates[0].content.parts[0].text;
-                    const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-                    const quizData = JSON.parse(cleanJson);
+                    const quizData = JSON.parse(rawText.trim());
                     
                     setQuiz(quizData.questions);
                     setLoading(false);
                 } catch (err) {
-                    setError("Gagal memuat kuis dari AI. Coba muat ulang.");
+                    setError("Gagal memuat kuis dari AI. Pastikan kuota API aktif atau coba muat ulang.");
                     setLoading(false);
                 }
             };
@@ -75,7 +81,6 @@
                 } else {
                     setLoading(true);
                     
-                    // Logika naik level otomatis jika benar semua
                     let nextLevel = user.level;
                     if (newScore === quiz.length) {
                         if (user.level === "Beginner") nextLevel = "Intermediate";
@@ -89,8 +94,16 @@
                 }
             };
 
-            if (error) return <div class="p-10 text-center text-red-500 font-bold">{error}</div>;
-            if (loading) return <div class="p-10 text-center font-medium animate-pulse">🤖 AI sedang merancang soal level {user.level}...</div>;
+            if (error) {
+                return (
+                    <div class="p-10 text-center">
+                        <p class="text-red-500 font-bold mb-4">{error}</p>
+                        <button onClick={() => loadQuiz(user.level, user.goal)} class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Coba Lagi</button>
+                    </div>
+                );
+            }
+            
+            if (loading) return <div class="p-10 text-center font-medium animate-pulse text-gray-600">🤖 AI sedang merancang soal level {user.level}...</div>;
 
             return (
                 <div class="max-w-md mx-auto mt-16 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
