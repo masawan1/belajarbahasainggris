@@ -8,8 +8,6 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script src="https://unpkg.com/@google/generative-ai@0.1.1/dist/index.umd.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-800">
     <div id="root"></div>
@@ -34,44 +32,56 @@
 
             useEffect(() => {
                 localStorage.setItem("english_user", JSON.stringify(user));
-                loadQuizSDK(user.level, user.goal);
+                loadQuizDirect(user.level, user.goal);
             }, [user.level]);
 
-            const loadQuizSDK = async (level, goal) => {
+            // MENEMBAK API GEMINI LANGSUNG MENGGUNAKAN FETCH BAWAAN BROWSER (ANTI-BLOKIR SCRIPT)
+            const loadQuizDirect = async (level, goal) => {
                 setLoading(true);
                 setError("");
 
-                // Membaca library obyek global yang dipasang oleh script UNPKG di atas
-                const aiLibrary = window.GoogleGenerativeAI;
-                
-                if (!aiLibrary) {
-                    setError("Pustaka Google AI gagal terpasang. Periksa apakah ekstensi adblocker memblokir script.");
-                    setLoading(false);
-                    return;
-                }
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+                const prompt = `Generate exactly 3 multiple-choice questions for an English learner at '${level}' level with focus on '${goal}'. 
+                Return output STRICTLY in JSON format matching this structure: 
+                { "questions": [ { "question": "The text", "options": ["A", "B", "C", "D"], "correctAnswer": "The exact correct option match" } ] }
+                Do not wrap the response in markdown backticks like \`\`\`json. Return pure JSON string only.`;
 
                 try {
-                    // Inisialisasi model menggunakan standar SDK global
-                    const ai = new aiLibrary.GoogleGenAI({ apiKey: GEMINI_API_KEY });
-                    const model = ai.getGenerativeModel({ 
-                        model: "gemini-1.5-flash",
-                        generationConfig: { responseMimeType: "application/json" }
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{ text: prompt }]
+                            }]
+                        })
                     });
 
-                    const prompt = `Generate exactly 3 multiple-choice questions for an English learner at '${level}' level with focus on '${goal}'. 
-                    Return output STRICTLY in JSON matching this structure: 
-                    { "questions": [ { "question": "The text", "options": ["A", "B", "C", "D"], "correctAnswer": "The exact correct option match" } ] }`;
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        throw new Error(errData.error?.message || `HTTP error! status: ${response.status}`);
+                    }
 
-                    const result = await model.generateContent(prompt);
-                    const response = await result.response;
-                    const text = response.text();
+                    const data = await response.json();
                     
-                    const quizData = JSON.parse(text.trim());
+                    if (!data.candidates || data.candidates.length === 0) {
+                        throw new Error("AI tidak mengembalikan respon valid.");
+                    }
+
+                    let rawText = data.candidates[0].content.parts[0].text;
+                    
+                    // Bersihkan teks jika AI bandel menyertakan markdown backticks
+                    rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+                    
+                    const quizData = JSON.parse(rawText);
                     setQuiz(quizData.questions);
                     setLoading(false);
                 } catch (err) {
                     console.error(err);
-                    setError("Gagal merancang materi otomatis via Google AI. Coba klik tombol di bawah untuk memuat ulang.");
+                    setError(`Gagal memuat soal: ${err.message}. Pastikan koneksi internet aman.`);
                     setLoading(false);
                 }
             };
@@ -103,7 +113,7 @@
                 return (
                     <div class="max-w-md mx-auto mt-20 bg-red-50 border border-red-200 p-6 rounded-xl shadow-md text-center">
                         <p class="text-red-500 font-bold mb-4 text-sm">{error}</p>
-                        <button onClick={() => loadQuizSDK(user.level, user.goal)} class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Coba Lagi</button>
+                        <button onClick={() => loadQuizDirect(user.level, user.goal)} class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Coba Lagi</button>
                     </div>
                 );
             }
@@ -136,7 +146,7 @@
                         
                         <div class="space-y-3">
                             {quiz[currentIdx].options.map((opt, i) => (
-                                <button key={i} onClick={() => handleAnswer(opt)} class="w-full p-4 text-left border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 font-medium text-gray-700 transition shadow-sm flex items-center gap-3 text-sm">
+                                <button key={i} onClick={() => handleAnswer(opt)} class="w-full p-4 text-left border rounded-xl hover:bg-blue-50 hover:border-blue-300 font-medium text-gray-700 transition shadow-sm flex items-center gap-3 text-sm">
                                     <span class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
                                     <span class="flex-1">{opt}</span>
                                 </button>
