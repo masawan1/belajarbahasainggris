@@ -18,7 +18,7 @@
         const { useState, useEffect } = React;
 
         function App() {
-            // State Progress User
+            // Menyimpan progres level secara lokal
             const [user, setUser] = useState(() => {
                 const saved = localStorage.getItem("english_user_complete");
                 return saved ? JSON.parse(saved) : { level: "Beginner", exp: 0, goal: "General Conversation" };
@@ -50,7 +50,7 @@
                 ]
             };
 
-            // 2. DATABASE MATERI BELAJAR (STUDY MATERIAL) BASED ON LEVEL
+            // 2. DATABASE MATERI BELAJAR BASED ON LEVEL
             const studyDatabase = {
                 Beginner: {
                     title: "Dasar Percakapan & Present Tense",
@@ -74,7 +74,7 @@
                     title: "Inversion Structures & Advanced Eloquence",
                     reading: "Advanced English features sophisticated grammar structures such as Inversion to provide emphasis. Consider this sentence: 'Hardly had he entered the laboratory when the electricity went out.' Furthermore, hypothetical structures like 'Were it not for...' are widely utilized in professional documentation to express formal conditionals without using 'if'.",
                     tips: [
-                        "Inversion menggunakan struktur kata tanya setelah kata negatif/semi-negatif (Hardly had he..., No sooner had she...).
+                        "Inversion menggunakan struktur kata tanya setelah kata negatif/semi-negatif (Hardly had he..., No sooner had she...).",
                         "Struktur formal tanpa 'if': 'Were it not for your help' sama maknanya dengan 'If it were not for your help'.",
                         "Gunakan kata hubung 'such + noun + that' untuk menyatakan hubungan sebab-akibat yang kuat."
                     ]
@@ -82,7 +82,7 @@
             };
 
             useEffect(() => {
-                localStorage.setItem("english_complete_user", JSON.stringify(user));
+                localStorage.setItem("english_user_complete", JSON.stringify(user));
                 setQuiz(quizDatabase[user.level] || quizDatabase["Beginner"]);
             }, [user.level]);
 
@@ -112,7 +112,6 @@
 
                     alert(`Kuis Selesai!\nSkor Anda: ${newScore}/${currentQuestions.length}\nLevel Anda Sekarang: ${nextLevel}\n\nSistem otomatis mengalihkan Anda ke Ruang Belajar Materi Baru!`);
                     
-                    // RESET KUIS & PINDAH KE HALAMAN BELAJAR MATERI
                     setCurrentIdx(0);
                     setScore(0);
                     setActiveTab("study"); 
@@ -123,7 +122,7 @@
 
             return (
                 <div className="max-w-md mx-auto mt-12 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 mb-20">
-                    {/* ATAS: DASHBOARD STATUS USER */}
+                    {/* DASHBOARD STATUS USER */}
                     <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-inner">
                         <div>
                             <p className="text-xs text-blue-100 uppercase font-semibold">Target Belajar</p>
@@ -137,14 +136,14 @@
                         </div>
                     </div>
 
-                    {/* KONTEN BERDASARKAN TAB HALAMAN AKTIF */}
+                    {/* INTERFACE BERSYARAT */}
                     {activeTab === "quiz" ? (
                         <div>
-                            {/* Progress Bar Kuis */}
+                            {/* Progress Bar */}
                             <div className="w-full bg-gray-100 h-1.5">
                                 <div className="bg-blue-500 h-1.5 transition-all duration-300" style={{ width: `${(currentIdx / (quiz.length || 1)) * 100}%` }}></div>
                             </div>
-                            {/* Tampilan Kuis */}
+                            {/* Soal Kuis */}
                             <div className="p-6">
                                 <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Evaluasi Kuis - Pertanyaan {currentIdx + 1} dari {quiz.length}</span>
                                 <h2 className="text-lg font-bold text-gray-800 mt-1 mb-6 leading-snug">{quiz[currentIdx]?.question}</h2>
@@ -163,7 +162,7 @@
                             </div>
                         </div>
                     ) : (
-                        /* TAMPILAN RUANG BELAJAR (MATERI LENGKAP) */
+                        /* TAMPILAN RUANG BELAJAR MATERI */
                         <div className="p-6 space-y-6">
                             <div>
                                 <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Materi Pelajaran - Level {user.level}</span>
@@ -196,7 +195,7 @@
                         </div>
                     )}
 
-                    {/* MENU NAVIGASI BAWAH (BOTTOM NAVIGATION BAR) */}
+                    {/* MENU NAVIGASI BAWAH */}
                     <div className="border-t border-gray-100 bg-gray-50/80 backdrop-blur flex justify-around p-2">
                         <button 
                             onClick={() => setActiveTab("quiz")}
