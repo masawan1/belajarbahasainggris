@@ -4,25 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English Adaptive Learning</title>
+    <!-- React & Babel Player -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script type="importmap">
-      {
-        "imports": {
-          "@google/generative-ai": "https://esm.run/@google/generative-ai"
-        }
-      }
+    
+    <!-- Library Google Gen AI versi Browser Global -->
+    <script type="module">
+        import { GoogleGenAI } from "https://esm.run/@google/generative-ai";
+        window.GoogleGenAI = GoogleGenAI; // Lempar ke objek global agar bisa diakses oleh Babel
     </script>
 </head>
 <body class="bg-gray-50 text-gray-800">
     <div id="root"></div>
 
-    <script type="module" babel>
-        // Import Google Gen AI langsung secara modul browser resmi
-        import { GoogleGenAI } from "@google/generative-ai";
-
+    <script type="text/babel">
         const { useState, useEffect } = React;
 
         // API Key Gemini milikmu
@@ -42,19 +40,30 @@
 
             useEffect(() => {
                 localStorage.setItem("english_user", JSON.stringify(user));
-                loadQuizSDK(user.level, user.goal);
+                
+                // Beri jeda 1 detik untuk memastikan GoogleGenAI sudah termuat sempurna di window
+                const timer = setTimeout(() => {
+                    loadQuizSDK(user.level, user.goal);
+                }, 1000);
+                
+                return () => clearTimeout(timer);
             }, [user.level]);
 
-            // Pemanggilan Resmi menggunakan Google AI SDK Browser (Bebas Hambatan CORS)
             const loadQuizSDK = async (level, goal) => {
+                if (!window.GoogleGenAI) {
+                    setError("Menunggu pustaka Google AI dimuat... Silakan muat ulang halaman.");
+                    setLoading(false);
+                    return;
+                }
+
                 setLoading(true);
                 setError("");
 
                 try {
-                    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+                    const ai = new window.GoogleGenAI({ apiKey: GEMINI_API_KEY });
                     const model = ai.getGenerativeModel({ 
                         model: "gemini-1.5-flash",
-                        generationConfig: { responseMimeType: "application/json" } // Mengunci output wajib JSON
+                        generationConfig: { responseMimeType: "application/json" }
                     });
 
                     const prompt = `Generate exactly 3 multiple-choice questions for an English learner at '${level}' level with focus on '${goal}'. 
@@ -70,7 +79,7 @@
                     setLoading(false);
                 } catch (err) {
                     console.error(err);
-                    setError("Gagal merancang materi otomatis via Google SDK. Coba periksa koneksi internet Anda.");
+                    setError("Gagal merancang materi otomatis via Google SDK. Coba ketuk tombol di bawah.");
                     setLoading(false);
                 }
             };
@@ -100,37 +109,44 @@
 
             if (error) {
                 return (
-                    <div class="p-10 text-center">
-                        <p class="text-red-500 font-bold mb-4">{error}</p>
+                    <div class="max-w-md mx-auto mt-20 bg-red-50 border border-red-200 p-6 rounded-xl shadow-md text-center">
+                        <p class="text-red-500 font-bold mb-4 text-sm">{error}</p>
                         <button onClick={() => loadQuizSDK(user.level, user.goal)} class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Coba Lagi</button>
                     </div>
                 );
             }
             
-            if (loading) return <div class="p-10 text-center font-medium animate-pulse text-gray-600">🤖 SDK Google resmi sedang memproses pembuatan soal level {user.level}...</div>;
+            if (loading) {
+                return (
+                    <div class="flex flex-col items-center justify-center min-h-screen p-6">
+                        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+                        <p class="text-center text-gray-600 font-medium">🤖 AI sedang merancang soal level {user.level}...</p>
+                    </div>
+                );
+            }
 
             return (
                 <div class="max-w-md mx-auto mt-16 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center">
+                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-inner">
                         <div>
                             <p class="text-xs text-blue-100 uppercase font-semibold">Target Belajar</p>
                             <h3 class="text-sm font-bold truncate max-w-[180px]">{user.goal}</h3>
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-xs bg-white/20 px-2 py-1 rounded font-mono">EXP: {user.exp}</span>
-                            <span class="bg-yellow-400 text-slate-900 text-xs px-3 py-1 rounded-full font-bold uppercase">{user.level}</span>
+                            <span class="bg-yellow-400 text-slate-900 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide">{user.level}</span>
                         </div>
                     </div>
                     
                     <div class="p-6">
-                        <span class="text-xs font-bold text-blue-600 uppercase">Pertanyaan {currentIdx + 1} dari {quiz.length}</span>
-                        <h2 class="text-lg font-bold text-gray-800 mt-1 mb-6">{quiz[currentIdx].question}</h2>
+                        <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Pertanyaan {currentIdx + 1} dari {quiz.length}</span>
+                        <h2 class="text-lg font-bold text-gray-800 mt-1 mb-6 leading-snug">{quiz[currentIdx].question}</h2>
                         
                         <div class="space-y-3">
                             {quiz[currentIdx].options.map((opt, i) => (
-                                <button key={i} onClick={() => handleAnswer(opt)} class="w-full p-4 text-left border rounded-xl hover:bg-blue-50 hover:border-blue-300 font-medium text-gray-700 transition shadow-sm flex items-center gap-3">
+                                <button key={i} onClick={() => handleAnswer(opt)} class="w-full p-4 text-left border rounded-xl hover:bg-blue-50 hover:border-blue-300 font-medium text-gray-700 transition shadow-sm flex items-center gap-3 text-sm">
                                     <span class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
-                                    <span class="text-sm">{opt}</span>
+                                    <span class="flex-1">{opt}</span>
                                 </button>
                             ))}
                         </div>
