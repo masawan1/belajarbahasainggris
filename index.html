@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>English Adaptive Learning</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // GANTI DENGAN URL WEB APP GOOGLE KAMU
+        const API_URL = "URL_WEB_APP_GOOGLE_APPS_SCRIPT_KAMU"; 
+        const USER_EMAIL = "user@example.com";
+
+        function App() {
+            const [user, setUser] = useState(null);
+            const [quiz, setQuiz] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [currentIdx, setCurrentIdx] = useState(0);
+            const [score, setScore] = useState(0);
+
+            // 1. Ambil Data User dari Spreadsheet saat pertama buka
+            useEffect(() => {
+                fetch(API_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ action: "getUser", email: USER_EMAIL })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    setUser(data);
+                    loadQuiz(data.level, data.goal);
+                });
+            }, []);
+
+            // 2. Ambil Soal dari AI via Google Script
+            const loadQuiz = (level, goal) => {
+                setLoading(true);
+                fetch(API_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ action: "getAIQuiz", level, goal })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    setQuiz(data.questions);
+                    setLoading(false);
+                });
+            };
+
+            const handleAnswer = (ans) => {
+                let newScore = score;
+                if (ans === quiz[currentIdx].correctAnswer) newScore++;
+                setScore(newScore);
+
+                if (currentIdx + 1 < quiz.length) {
+                    setCurrentIdx(currentIdx + 1);
+                } else {
+                    evaluateLevel(newScore);
+                }
+            };
+
+            // 3. Logika Otomatisasi Naik Level
+            const evaluateLevel = (finalScore) => {
+                let newLevel = user.level;
+                if (finalScore === quiz.length) {
+                    if (user.level === "Beginner") newLevel = "Intermediate";
+                    else if (user.level === "Intermediate") newLevel = "Expert";
+                }
+
+                // Simpan otomatis ke Spreadsheet
+                fetch(API_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ 
+                        action: "updateProgress", 
+                        email: USER_EMAIL, 
+                        newLevel: newLevel, 
+                        newExp: parseInt(user.exp) + 50 
+                    })
+                }).then(() => {
+                    alert(`Sesi selesai! Level kamu sekarang: ${newLevel}`);
+                    window.location.reload();
+                });
+            };
+
+            if (loading) return <div class="p-10 text-center">🤖 AI sedang menyiapkan materi sesuai level kamu...</div>;
+
+            return (
+                <div class="max-w-md mx-auto mt-10 bg-white p-6 rounded-xl shadow-lg">
+                    <div class="flex justify-between mb-4 border-b pb-2">
+                        <span class="font-bold">Level: {user.level}</span>
+                        <span class="text-blue-500">EXP: {user.exp}</span>
+                    </div>
+                    
+                    <h2 class="text-xl font-semibold mb-4">{quiz[currentIdx].question}</h2>
+                    <div class="space-y-2">
+                        {quiz[currentIdx].options.map(opt => (
+                            <button 
+                                key={opt}
+                                onClick={() => handleAnswer(opt)}
+                                class="w-full p-3 text-left border rounded hover:bg-blue-50 transition"
+                            >
+                                {opt}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
