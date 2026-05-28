@@ -39,34 +39,50 @@
                 setLoading(true);
                 setError("");
                 
-                // MENGGUNAKAN ENDPOINT TERBARU DAN MODEL FLASH YANG MENDUKUNG CLIENT-SIDE REQUEST
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+                // Endpoint asli Gemini
+                const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
                 
                 const prompt = `Generate 3 multiple-choice questions for an English learner at '${level}' level with focus on '${goal}'. ` +
-                    `Return STRICTLY JSON format matching structure: { "questions": [ { "question": "The question", "options": ["A", "B", "C", "D"], "correctAnswer": "The exact correct option" } ] }.`;
+                    `Return STRICTLY JSON format matching structure: { "questions": [ { "question": "The question", "options": ["A", "B", "C", "D"], "correctAnswer": "The exact correct option" } ] }. Do not include markdown formatting.`;
+
+                const payload = { 
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { responseMimeType: "application/json" }
+                };
+
+                // Menembak lewat AllOrigins Proxy gratis agar lolos sensor CORS Google
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
                 try {
-                    const res = await fetch(url, {
+                    const res = await fetch(proxyUrl, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ 
-                            contents: [{ parts: [{ text: prompt }] }],
-                            generationConfig: { 
-                                responseMimeType: "application/json" // Memaksa AI mengembalikan JSON murni
-                            }
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: new URLSearchParams({
+                            reqMethod: "POST",
+                            reqHeaders: JSON.stringify({ "Content-Type": "application/json" }),
+                            reqBody: JSON.stringify(payload)
                         })
                     });
                     
-                    if (!res.ok) throw new Error("API Google menolak request");
+                    if (!res.ok) throw new Error("Terjadi gangguan pada jalur proxy.");
                     
-                    const data = await res.json();
-                    const rawText = data.candidates[0].content.parts[0].text;
+                    const proxyData = await res.json();
+                    
+                    // AllOrigins membungkus respon asli di dalam properti 'contents' berbentuk string
+                    const geminiRes = JSON.parse(proxyData.contents);
+                    
+                    if (geminiRes.error) {
+                        throw new Error(geminiRes.error.message || "Gemini memblokir akses browser.");
+                    }
+
+                    const rawText = geminiRes.candidates[0].content.parts[0].text;
                     const quizData = JSON.parse(rawText.trim());
                     
                     setQuiz(quizData.questions);
                     setLoading(false);
                 } catch (err) {
-                    setError("Gagal memuat kuis dari AI. Pastikan kuota API aktif atau coba muat ulang.");
+                    console.error(err);
+                    setError("Gagal memuat kuis dari AI. Jalur koneksi diblokir atau kuota habis.");
                     setLoading(false);
                 }
             };
