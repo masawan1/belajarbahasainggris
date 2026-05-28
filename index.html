@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English Adaptive Learning</title>
+    <!-- React & Babel Standalone -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -16,9 +18,9 @@
         const { useState, useEffect } = React;
 
         function App() {
-            // Membaca status level dari memori browser laptop kamu
+            // Menyimpan progres level secara lokal di browser kamu
             const [user, setUser] = useState(() => {
-                const saved = localStorage.getItem("english_user_ddg");
+                const saved = localStorage.getItem("english_user_local");
                 return saved ? JSON.parse(saved) : { level: "Beginner", exp: 0, goal: "General Conversation" };
             });
 
@@ -27,85 +29,34 @@
             const [currentIdx, setCurrentIdx] = useState(0);
             const [score, setScore] = useState(0);
 
+            // Bank data soal adaptif yang langsung dimuat instan tanpa jeda jaringan
+            const localQuestions = {
+                Beginner: [
+                    { question: "Choose the correct sentence for daily greeting:", options: ["She go to school yesterday", "He goes to office every day", "They is learning English", "I are a student"], correctAnswer: "He goes to office every day" },
+                    { question: "What is the plural form of 'Child'?", options: ["Childs", "Children", "Childrens", "Childes"], correctAnswer: "Children" },
+                    { question: "I ______ a professional computer teacher.", options: ["am", "is", "are", "be"], correctAnswer: "am" }
+                ],
+                Intermediate: [
+                    { question: "If the server ______ down tomorrow, we will lose our student login data.", options: ["goes", "go", "went", "going"], correctAnswer: "goes" },
+                    { question: "He is looking forward to ______ his web development portfolio next week.", options: ["deploy", "deployed", "deploying", "deploys"], correctAnswer: "deploying" },
+                    { question: "By the time the principal arrived, the teacher ______ the classroom presentation.", options: ["finish", "have finished", "had finished", "will finish"], correctAnswer: "had finished" }
+                ],
+                Expert: [
+                    { question: "Hardly ______ entered the laboratory when the electricity went out.", options: ["had he", "he had", "does he", "has he"], correctAnswer: "had he" },
+                    { question: "She implemented the new curriculum with such eloquence ______ all instructors were instantly inspired.", options: ["that", "so", "as", "than"], correctAnswer: "that" },
+                    { question: "Were it not for your sophisticated algorithm, I ______ accomplished this automation website.", options: ["will not have", "would not have", "cannot have", "should not"], correctAnswer: "would not have" }
+                ]
+            };
+
+            // Dipanggil setiap kali level pengguna berubah
             useEffect(() => {
-                localStorage.setItem("english_user_ddg", JSON.stringify(user));
-                loadQuizManager(user.level, user.goal);
-            }, [user.level]);
-
-            const loadQuizManager = async (level, goal) => {
-                setLoading(true);
+                localStorage.setItem("english_user_local", JSON.stringify(user));
                 
-                const prompt = `Generate exactly 3 multiple-choice questions for an English learner at '${level}' level with focus on '${goal}'. 
-                Return output STRICTLY in valid JSON format matching this structure: 
-                { "questions": [ { "question": "The text", "options": ["A", "B", "C", "D"], "correctAnswer": "The exact correct option match" } ] }`;
-
-                try {
-                    // Mencoba menembak API DuckDuckGo secara bersih
-                    const initRes = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent("https://duckduckgo.com/duckchat/v1/status"));
-                    const initData = await initRes.json();
-                    const vToken = initRes.headers.get("x-vqd-accept") || "1-223456789-123456789";
-
-                    const response = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent("https://duckduckgo.com/duckchat/v1/chat"), {
-                        method: "POST",
-                        body: JSON.stringify({
-                            model: "meta-llama/Meta-Llama-3-70B-Instruct",
-                            messages: [{ role: "user", content: prompt }]
-                        })
-                    });
-
-                    const proxyData = await response.json();
-                    const textData = proxyData.contents;
-                    
-                    const lines = textData.split("\n");
-                    let fullAiText = "";
-                    for (let line of lines) {
-                        if (line.startsWith("data: ")) {
-                            const chunkStr = line.replace("data: ", "").trim();
-                            if (chunkStr === "[DONE]") break;
-                            const chunkObj = JSON.parse(chunkStr);
-                            if (chunkObj.message) fullAiText += chunkObj.message;
-                        }
-                    }
-
-                    const cleanJson = fullAiText.replace(/```json/g, "").replace(/```/g, "").trim();
-                    const quizData = JSON.parse(cleanJson);
-                    
-                    if (quizData.questions && quizData.questions.length > 0) {
-                        setQuiz(quizData.questions);
-                        setLoading(false);
-                        return;
-                    }
-                    throw new Error("Format tidak pas");
-                } catch (err) {
-                    // OTOMATISASI BACKUP: Jika jalur AI macet, langsung muat bank soal adaptif lokal (Anti-Stuck!)
-                    console.log("Menggunakan modul soal adaptif lokal...");
-                    loadLocalAdaptiveQuiz(level);
-                }
-            };
-
-            // Bank Soal Cadangan Terintegrasi (Otomatis menyesuaikan level user secara instan)
-            const loadLocalAdaptiveQuiz = (level) => {
-                const backupData = {
-                    Beginner: [
-                        { question: "Choose the correct sentence for daily greeting:", options: ["She go to school yesterday", "He goes to office every day", "They is learning English", "I are a student"], correctAnswer: "He goes to office every day" },
-                        { question: "What is the plural form of 'Child'?", options: ["Childs", "Children", "Childrens", "Childes"], correctAnswer: "Children" },
-                        { question: "I ______ a professional computer network engineer.", options: ["am", "is", "are", "be"], correctAnswer: "am" }
-                    ],
-                    Intermediate: [
-                        { question: "If the server ______ down tomorrow, we will lose our student login data.", options: ["goes", "go", "went", "going"], correctAnswer: "goes" },
-                        { question: "He is looking forward to ______ his web development portfolio next week.", options: ["deploy", "deployed", "deploying", "deploys"], correctAnswer: "deploying" },
-                        { question: "By the time the principal arrived, the teacher ______ the classroom presentation.", options: ["finish", "have finished", "had finished", "will finish"], correctAnswer: "had finished" }
-                    ],
-                    Expert: [
-                        { question: "Hardly ______ entered the laboratory when the electricity went out.", options: ["had he", "he had", "does he", "has he"], correctAnswer: "had he" },
-                        { question: "She implemented the new curriculum with such eloquence ______ all instructors were instantly inspired.", options: ["that", "so", "as", "than"], correctAnswer: "that" },
-                        { question: "Were it not for your sophisticated algorithm, I ______ accomplished this automation website.", options: ["will not have", "would not have", "cannot have", "should not"], correctAnswer: "would not have" }
-                    ]
-                };
-
-                setQuiz(backupData[level] || backupData["Beginner"]);
+                // Ambil soal berdasarkan level saat ini, jika error arahkan ke Beginner
+                const currentQuestions = localQuestions[user.level] || localQuestions["Beginner"];
+                setQuiz(currentQuestions);
                 setLoading(false);
-            };
+            }, [user.level]);
 
             const handleAnswer = (ans) => {
                 let newScore = score;
@@ -115,9 +66,7 @@
                 if (currentIdx + 1 < quiz.length) {
                     setCurrentIdx(currentIdx + 1);
                 } else {
-                    setLoading(true);
-                    
-                    // Evaluasi Otomatisasi Naik Tingkat
+                    // Evaluasi kenaikan tingkat otomatis jika menjawab semua dengan benar
                     let nextLevel = user.level;
                     if (newScore === quiz.length) {
                         if (user.level === "Beginner") nextLevel = "Intermediate";
@@ -125,7 +74,7 @@
                     }
 
                     setUser(prev => ({ ...prev, level: nextLevel, exp: prev.exp + 50 }));
-                    alert(`Sesi Selesai!\nSkor Kamu: ${newScore}/${quiz.length}\nLevel Kamu Sekarang: ${nextLevel}`);
+                    alert(`Kuis Selesai!\nSkor Kamu: ${newScore}/${quiz.length}\nLevel Kamu Sekarang: ${nextLevel}`);
                     setCurrentIdx(0);
                     setScore(0);
                 }
@@ -135,14 +84,14 @@
                 return (
                     <div class="flex flex-col items-center justify-center min-h-screen p-6">
                         <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
-                        <p class="text-center text-gray-600 font-medium animate-pulse">🤖 Menyiapkan materi esensial level {user.level}...</p>
+                        <p class="text-center text-gray-600 font-medium">Menyiapkan modul kuis...</p>
                     </div>
                 );
             }
 
             return (
                 <div class="max-w-md mx-auto mt-16 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-                    {/* Header Dasbor */}
+                    {/* Header Modul */}
                     <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-inner">
                         <div>
                             <p class="text-xs text-blue-100 uppercase font-semibold">Target Belajar</p>
@@ -154,7 +103,7 @@
                         </div>
                     </div>
                     
-                    {/* Kotak Soal */}
+                    {/* Kotak Pertanyaan */}
                     <div class="p-6">
                         <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Pertanyaan {currentIdx + 1} dari {quiz.length}</span>
                         <h2 class="text-lg font-bold text-gray-800 mt-1 mb-6 leading-snug">{quiz[currentIdx].question}</h2>
