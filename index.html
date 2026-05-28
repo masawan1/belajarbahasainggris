@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English Adaptive Learning</title>
+    <title>English Adaptive Learning - 4 Skills</title>
     <!-- React & Babel Standalone -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -18,81 +18,106 @@
         const { useState, useEffect } = React;
 
         function App() {
-            // Menyimpan progres level secara lokal
+            // State Progress User
             const [user, setUser] = useState(() => {
-                const saved = localStorage.getItem("english_user_complete");
+                const saved = localStorage.getItem("english_user_4skills");
                 return saved ? JSON.parse(saved) : { level: "Beginner", exp: 0, goal: "General Conversation" };
             });
 
-            // Navigasi Halaman: 'quiz' atau 'study'
-            const [activeTab, setActiveTab] = useState("quiz"); 
-            
+            // Navigasi Tab Utama
+            const [activeTab, setActiveTab] = useState("study"); 
+            // Sub-navigasi di dalam Ruang Belajar (Reading, Listening, Writing, Speaking)
+            const [skillTab, setSkillTab] = useState("reading");
+
+            // State untuk fitur Writing & Speaking
+            const [writingInput, setWritingInput] = useState("");
+            const [speakingText, setSpeakingText] = useState("");
+            const [isListening, setIsListening] = useState(false);
+
+            // State Kuis
             const [quiz, setQuiz] = useState([]);
             const [currentIdx, setCurrentIdx] = useState(0);
             const [score, setScore] = useState(0);
 
-            // 1. DATABASE KUIS LOCAL
+            // DATABASE LOKAL (KUIS & MATERI 4 SKILLS)
             const quizDatabase = {
                 Beginner: [
                     { question: "Choose the correct sentence for daily greeting:", options: ["She go to school yesterday", "He goes to office every day", "They is learning English", "I are a student"], correctAnswer: "He goes to office every day" },
-                    { question: "What is the plural form of 'Child'?", options: ["Childs", "Children", "Childrens", "Childes"], correctAnswer: "Children" },
-                    { question: "I ______ a professional computer teacher.", options: ["am", "is", "are", "be"], correctAnswer: "am" }
+                    { question: "What is the plural form of 'Child'?", options: ["Childs", "Children", "Childrens", "Childes"], correctAnswer: "Children" }
                 ],
                 Intermediate: [
-                    { question: "If the server ______ down tomorrow, we will lose our student login data.", options: ["goes", "go", "went", "going"], correctAnswer: "goes" },
-                    { question: "He is looking forward to ______ his web development portfolio next week.", options: ["deploy", "deployed", "deploying", "deploys"], correctAnswer: "deploying" },
-                    { question: "By the time the principal arrived, the teacher ______ the classroom presentation.", options: ["finish", "have finished", "had finished", "will finish"], correctAnswer: "had finished" }
+                    { question: "If the server ______ down tomorrow, we will lose data.", options: ["goes", "go", "went", "going"], correctAnswer: "goes" },
+                    { question: "He is looking forward to ______ his portfolio.", options: ["deploy", "deployed", "deploying", "deploys"], correctAnswer: "deploying" }
                 ],
                 Expert: [
                     { question: "Hardly ______ entered the laboratory when the electricity went out.", options: ["had he", "he had", "does he", "has he"], correctAnswer: "had he" },
-                    { question: "She implemented the new curriculum with such eloquence ______ all instructors were instantly inspired.", options: ["that", "so", "as", "than"], correctAnswer: "that" },
-                    { question: "Were it not for your sophisticated algorithm, I ______ accomplished this automation website.", options: ["will not have", "would not have", "cannot have", "should not"], correctAnswer: "would not have" }
+                    { question: "Were it not for your assistance, I ______ accomplished this.", options: ["will not have", "would not have", "cannot have", "should not"], correctAnswer: "would not have" }
                 ]
             };
 
-            // 2. DATABASE MATERI BELAJAR BASED ON LEVEL
             const studyDatabase = {
                 Beginner: {
                     title: "Dasar Percakapan & Present Tense",
-                    reading: "Hello! My name is Alex. Every day, I go to the office at 8 AM. I am a teacher, and I love sharing knowledge with my students. In daily English, we use 'Simple Present Tense' to talk about our regular habits or facts.",
-                    tips: [
-                        "Gunakan 'am' hanya untuk subjek 'I'.",
-                        "Untuk kata kerja subjek He/She/It, tambahkan akhiran s/es (contoh: He goes, She likes).",
-                        "Children adalah bentuk jamak resmi dari Child (tidak perlu ditambah 's' lagi)."
-                    ]
+                    text: "Hello! My name is Alex. Every day, I go to the office at 8 AM. I am a teacher, and I love sharing knowledge with my students. In daily English, we use Simple Present Tense to talk about our regular habits.",
+                    speakingPrompt: "Hello, my name is Alex and I am a teacher."
                 },
                 Intermediate: {
                     title: "Conditional Clauses & Professional English",
-                    reading: "In professional environments, predicting technical risks is crucial. For example: 'If the server goes down tomorrow, we will lose our student login data.' This structure is called Conditional Type 1 (Real Possibility). Additionally, phrases like 'look forward to' must always be followed by a Verb-ing.",
-                    tips: [
-                        "Struktur Conditional Type 1: If + Simple Present, Will + Verb 1.",
-                        "Frasa 'look forward to' wajib diikuti Verb-ing (contoh: looking forward to deploying).",
-                        "Past Perfect (had + V3) digunakan untuk aksi yang sudah selesai sebelum aksi lain terjadi di masa lalu."
-                    ]
+                    text: "In professional environments, predicting technical risks is crucial. For example, if the server goes down tomorrow, we will lose our student login data. We look forward to deploying the stability patch soon.",
+                    speakingPrompt: "Predicting technical risks is crucial for our server infrastructure."
                 },
                 Expert: {
                     title: "Inversion Structures & Advanced Eloquence",
-                    reading: "Advanced English features sophisticated grammar structures such as Inversion to provide emphasis. Consider this sentence: 'Hardly had he entered the laboratory when the electricity went out.' Furthermore, hypothetical structures like 'Were it not for...' are widely utilized in professional documentation to express formal conditionals without using 'if'.",
-                    tips: [
-                        "Inversion menggunakan struktur kata tanya setelah kata negatif/semi-negatif (Hardly had he..., No sooner had she...).",
-                        "Struktur formal tanpa 'if': 'Were it not for your help' sama maknanya dengan 'If it were not for your help'.",
-                        "Gunakan kata hubung 'such + noun + that' untuk menyatakan hubungan sebab-akibat yang kuat."
-                    ]
+                    text: "Advanced English features sophisticated grammar structures such as Inversion to provide emphasis. Hardly had the instructor entered the laboratory when the system automation suddenly failed.",
+                    speakingPrompt: "Hardly had the instructor entered the laboratory when the system failed."
                 }
             };
 
             useEffect(() => {
-                localStorage.setItem("english_user_complete", JSON.stringify(user));
+                localStorage.setItem("english_user_4skills", JSON.stringify(user));
                 setQuiz(quizDatabase[user.level] || quizDatabase["Beginner"]);
             }, [user.level]);
+
+            // FITUR LISTENING: Text-to-Speech bawaan browser (Tanpa API Key)
+            const handleSpeak = (textToSay) => {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel(); // Hentikan audio sebelumnya jika ada
+                    const utterance = new SpeechSynthesisUtterance(textToSay);
+                    utterance.lang = 'en-US'; // Set aksen Amerika
+                    utterance.rate = 0.9;     // Kecepatan artikulasi agak lambat agar jelas
+                    window.speechSynthesis.speak(utterance);
+                } else {
+                    alert("Fitur suara tidak didukung di browser ini.");
+                }
+            };
+
+            // FITUR SPEAKING: Perekam Suara & Deteksi Kata (Speech-to-Text)
+            const handleStartListening = () => {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    alert("Browser Anda belum mendukung Speech Recognition. Gunakan Chrome atau Edge terbaru.");
+                    return;
+                }
+
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'en-US';
+                recognition.interimResults = false;
+
+                recognition.onstart = () => setIsListening(true);
+                recognition.onend = () => setIsListening(false);
+                
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    setSpeakingText(transcript);
+                };
+
+                recognition.start();
+            };
 
             const handleAnswer = (selectedOption) => {
                 const currentQuestions = quizDatabase[user.level] || quizDatabase["Beginner"];
                 let newScore = score;
-                
-                if (selectedOption === currentQuestions[currentIdx].correctAnswer) {
-                    newScore++;
-                }
+                if (selectedOption === currentQuestions[currentIdx].correctAnswer) newScore++;
                 setScore(newScore);
 
                 if (currentIdx + 1 < currentQuestions.length) {
@@ -104,57 +129,45 @@
                         else if (user.level === "Intermediate") nextLevel = "Expert";
                     }
 
-                    setUser(prev => ({
-                        ...prev,
-                        level: nextLevel,
-                        exp: prev.exp + 50
-                    }));
-
-                    alert(`Kuis Selesai!\nSkor Anda: ${newScore}/${currentQuestions.length}\nLevel Anda Sekarang: ${nextLevel}\n\nSistem otomatis mengalihkan Anda ke Ruang Belajar Materi Baru!`);
-                    
+                    setUser(prev => ({ ...prev, level: nextLevel, exp: prev.exp + 50 }));
+                    alert(`Kuis Selesai! Skor: ${newScore}/${currentQuestions.length}\nLevel Anda: ${nextLevel}`);
                     setCurrentIdx(0);
                     setScore(0);
-                    setActiveTab("study"); 
+                    setActiveTab("study");
                 }
             };
 
             const currentStudy = studyDatabase[user.level] || studyDatabase["Beginner"];
 
             return (
-                <div className="max-w-md mx-auto mt-12 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 mb-20">
-                    {/* DASHBOARD STATUS USER */}
-                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-inner">
+                <div className="max-w-md mx-auto mt-8 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 mb-24">
+                    {/* TOP STATUS BAR */}
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-md">
                         <div>
                             <p className="text-xs text-blue-100 uppercase font-semibold">Target Belajar</p>
                             <h3 className="text-sm font-bold truncate max-w-[180px]">{user.goal}</h3>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                             <span className="text-xs bg-white/20 px-2 py-1 rounded font-mono">EXP: {user.exp}</span>
-                            <span className="bg-yellow-400 text-slate-900 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide shadow-sm">
+                            <span className="bg-yellow-400 text-slate-900 text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wide">
                                 {user.level}
                             </span>
                         </div>
                     </div>
 
-                    {/* INTERFACE BERSYARAT */}
+                    {/* TAB QUIZ */}
                     {activeTab === "quiz" ? (
                         <div>
-                            {/* Progress Bar */}
-                            <div className="w-full bg-gray-100 h-1.5">
-                                <div className="bg-blue-500 h-1.5 transition-all duration-300" style={{ width: `${(currentIdx / (quiz.length || 1)) * 100}%` }}></div>
+                            <div className="w-full bg-gray-100 h-1">
+                                <div className="bg-blue-500 h-1 transition-all duration-300" style={{ width: `${(currentIdx / quiz.length) * 100}%` }}></div>
                             </div>
-                            {/* Soal Kuis */}
                             <div className="p-6">
-                                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Evaluasi Kuis - Pertanyaan {currentIdx + 1} dari {quiz.length}</span>
+                                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Pertanyaan {currentIdx + 1} dari {quiz.length}</span>
                                 <h2 className="text-lg font-bold text-gray-800 mt-1 mb-6 leading-snug">{quiz[currentIdx]?.question}</h2>
                                 <div className="space-y-3">
                                     {quiz[currentIdx]?.options.map((opt, i) => (
-                                        <button 
-                                            key={i} 
-                                            onClick={() => handleAnswer(opt)} 
-                                            className="w-full p-4 text-left border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100 font-medium text-gray-700 transition duration-75 shadow-sm flex items-center gap-3 text-sm"
-                                        >
-                                            <span className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
+                                        <button key={i} onClick={() => handleAnswer(opt)} className="w-full p-4 text-left border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 font-medium text-gray-700 transition text-sm flex items-center gap-3 shadow-sm">
+                                            <span className="w-5 h-5 flex items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
                                             <span className="flex-1">{opt}</span>
                                         </button>
                                     ))}
@@ -162,54 +175,113 @@
                             </div>
                         </div>
                     ) : (
-                        /* TAMPILAN RUANG BELAJAR MATERI */
-                        <div className="p-6 space-y-6">
+                        /* TAB RUANG BELAJAR (4 SKILLS MANAGER) */
+                        <div className="p-5 space-y-4">
                             <div>
-                                <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Materi Pelajaran - Level {user.level}</span>
-                                <h2 className="text-xl font-bold text-gray-800 mt-0.5">{currentStudy.title}</h2>
+                                <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Materi Level {user.level}</span>
+                                <h2 className="text-lg font-bold text-gray-800">{currentStudy.title}</h2>
                             </div>
 
-                            <div className="bg-amber-50/60 border border-amber-100 rounded-xl p-4">
-                                <h4 className="text-xs font-bold text-amber-800 uppercase tracking-wide mb-1.5">📝 Reading Section</h4>
-                                <p className="text-sm text-gray-700 leading-relaxed italic">"{currentStudy.reading}"</p>
+                            {/* SUB NAVIGASI 4 SKILLS */}
+                            <div className="grid grid-cols-4 gap-1 bg-gray-100 p-1 rounded-xl text-center">
+                                {["reading", "listening", "writing", "speaking"].map((sk) => (
+                                    <button 
+                                        key={sk} 
+                                        onClick={() => setSkillTab(sk)}
+                                        className={`py-2 text-[11px] font-bold capitalize rounded-lg transition ${skillTab === sk ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+                                    >
+                                        {sk}
+                                    </button>
+                                ))}
                             </div>
 
-                            <div className="space-y-2">
-                                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide">💡 Key Grammar Tips:</h4>
-                                <ul className="space-y-2">
-                                    {currentStudy.tips.map((tip, idx) => (
-                                        <li key={idx} className="text-xs text-gray-600 flex items-start gap-2 leading-relaxed">
-                                            <span className="text-blue-500 font-bold">•</span>
-                                            <span>{tip}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
+                            {/* 1. KONTEN READING */}
+                            {skillTab === "reading" && (
+                                <div className="space-y-3 animate-fadeIn">
+                                    <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4">
+                                        <h4 className="text-xs font-bold text-blue-800 uppercase mb-1">📖 Reading Passage</h4>
+                                        <p className="text-sm text-gray-700 leading-relaxed font-serif">"{currentStudy.text}"</p>
+                                    </div>
+                                    <p className="text-xs text-gray-500 italic">Tips: Baca perlahan dan pahami konteks susunan kalimat di atas.</p>
+                                </div>
+                            )}
 
-                            <button 
-                                onClick={() => setActiveTab("quiz")} 
-                                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl text-sm shadow-md hover:from-blue-700 hover:to-indigo-700 transition"
-                            >
-                                Uji Kemampuan (Mulai Kuis Lagi)
-                            </button>
+                            {/* 2. KONTEN LISTENING */}
+                            {skillTab === "listening" && (
+                                <div className="space-y-4 text-center py-4 animate-fadeIn">
+                                    <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto text-2xl shadow-inner animate-bounce">🔊</div>
+                                    <p className="text-xs text-gray-600 max-w-xs mx-auto">Klik tombol di bawah untuk mendengarkan pelafalan kalimat level {user.level} oleh penutur asli (*native speaker*).</p>
+                                    <button 
+                                        onClick={() => handleSpeak(currentStudy.text)}
+                                        className="px-6 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-md hover:bg-indigo-700 transition"
+                                    >
+                                        Dengarkan Audio Sekarang
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* 3. KONTEN WRITING */}
+                            {skillTab === "writing" && (
+                                <div className="space-y-3 animate-fadeIn">
+                                    <h4 className="text-xs font-bold text-gray-700 uppercase">✍️ Tulis Rangkuman / Opini Anda:</h4>
+                                    <textarea 
+                                        rows="4"
+                                        value={writingInput}
+                                        onChange={(e) => setWritingInput(e.target.value)}
+                                        placeholder="Type your synthesis or summary in English here..."
+                                        className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:border-blue-400 focus:outline-none"
+                                    ></textarea>
+                                    <div className="flex justify-between items-center text-xs text-gray-400">
+                                        <span>Jumlah Kata: {writingInput.trim() === "" ? 0 : writingInput.trim().split(/\s+/).length} kata</span>
+                                        <button onClick={() => { alert("Rangkuman tersimpan!"); setWritingInput(""); }} className="text-blue-600 font-bold hover:underline">Kirim Esai</button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 4. KONTEN SPEAKING */}
+                            {skillTab === "speaking" && (
+                                <div className="space-y-3 animate-fadeIn">
+                                    <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl">
+                                        <h5 className="text-[11px] font-bold text-amber-800 uppercase">Teks yang Harus Diucapkan:</h5>
+                                        <p className="text-sm font-semibold text-gray-800">"{currentStudy.speakingPrompt}"</p>
+                                    </div>
+                                    
+                                    <div className="text-center py-2">
+                                        <button 
+                                            onClick={handleStartListening}
+                                            className={`p-4 rounded-full transition shadow-md text-xl ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                        >
+                                            {isListening ? "🛑" : "🎙️"}
+                                        </button>
+                                        <p className="text-[10px] text-gray-400 mt-1.5">{isListening ? "Mendengarkan... Silakan bicara ke mikrofon." : "Ketuk mikrofon lalu ucapkan kalimat di atas."}</p>
+                                    </div>
+
+                                    {speakingText && (
+                                        <div className="bg-gray-50 border p-3 rounded-xl">
+                                            <h5 className="text-[11px] font-bold text-gray-500 uppercase">Hasil Deteksi Suara Anda:</h5>
+                                            <p className="text-sm text-blue-600 font-mono italic">"{speakingText}"</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {/* MENU NAVIGASI BAWAH */}
-                    <div className="border-t border-gray-100 bg-gray-50/80 backdrop-blur flex justify-around p-2">
-                        <button 
-                            onClick={() => setActiveTab("quiz")}
-                            className={`flex flex-col items-center gap-1 py-1 px-4 rounded-lg transition text-xs font-bold ${activeTab === 'quiz' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
-                        >
-                            <span>📝</span>
-                            <span>Mulai Kuis</span>
-                        </button>
+                    {/* BOTTOM NAVIGATION BAR */}
+                    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto border-t border-gray-100 bg-white flex justify-around p-2 shadow-xl rounded-t-2xl z-50">
                         <button 
                             onClick={() => setActiveTab("study")}
-                            className={`flex flex-col items-center gap-1 py-1 px-4 rounded-lg transition text-xs font-bold ${activeTab === 'study' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                            className={`flex flex-col items-center gap-0.5 py-1 px-4 text-xs font-bold transition ${activeTab === 'study' ? 'text-blue-600' : 'text-gray-400'}`}
                         >
-                            <span>📖</span>
-                            <span>Ruang Belajar</span>
+                            <span className="text-lg">📖</span>
+                            <span>Materi Belajar</span>
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab("quiz")}
+                            className={`flex flex-col items-center gap-0.5 py-1 px-4 text-xs font-bold transition ${activeTab === 'quiz' ? 'text-blue-600' : 'text-gray-400'}`}
+                        >
+                            <span className="text-lg">📝</span>
+                            <span>Mulai Kuis</span>
                         </button>
                     </div>
                 </div>
