@@ -2,19 +2,22 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English Adaptive Learning</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-50 text-gray-800">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // GANTI DENGAN URL WEB APP GOOGLE KAMU
+        // =========================================================================
+        // PENTING: TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT KAMU DI SINI
+        // =========================================================================
         const API_URL = "https://script.google.com/macros/s/AKfycbyRfxzjrB7ccMiMGuQ_XIozvVjvV2hUu_ZydV4MY-RX5H8x5nUzmPx4vSX-N6tQ2wmxqQ/exec"; 
         const USER_EMAIL = "user@example.com";
 
@@ -22,91 +25,172 @@
             const [user, setUser] = useState(null);
             const [quiz, setQuiz] = useState([]);
             const [loading, setLoading] = useState(true);
+            const [statusMessage, setStatusMessage] = useState("Menghubungkan ke database...");
             const [currentIdx, setCurrentIdx] = useState(0);
             const [score, setScore] = useState(0);
+            const [errorMessage, setErrorMessage] = useState("");
 
-            // 1. Ambil Data User dari Spreadsheet saat pertama buka
+            // 1. Ambil Data User saat aplikasi pertama kali dibuka
             useEffect(() => {
+                if (API_URL.includes("URL_WEB_APP")) {
+                    setErrorMessage("API_URL belum diganti! Silakan masukkan URL Google Apps Script kamu di index.html.");
+                    setLoading(false);
+                    return;
+                }
+
                 fetch(API_URL, {
                     method: "POST",
+                    mode: "cors",
+                    headers: { "Content-Type": "text/plain" }, // Menggunakan text/plain mencegah preflight CORS error di GAS
                     body: JSON.stringify({ action: "getUser", email: USER_EMAIL })
                 })
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) throw new Error("Koneksi ke server gagal (Status: " + res.status + ")");
+                    return res.json();
+                })
                 .then(data => {
+                    if (data.error) throw new Error(data.error);
                     setUser(data);
+                    setStatusMessage(`Menganalisis level ${data.level}. AI sedang merancang soal...`);
                     loadQuiz(data.level, data.goal);
+                })
+                .catch(err => {
+                    setErrorMessage(err.message || "Gagal memuat profil pengguna.");
+                    setLoading(false);
                 });
             }, []);
 
-            // 2. Ambil Soal dari AI via Google Script
+            // 2. Ambil Soal Kuis dari AI via Google Script
             const loadQuiz = (level, goal) => {
-                setLoading(true);
                 fetch(API_URL, {
                     method: "POST",
-                    body: JSON.stringify({ action: "getAIQuiz", level, goal })
+                    mode: "cors",
+                    headers: { "Content-Type": "text/plain" },
+                    body: JSON.stringify({ action: "getAIQuiz", level: level, goal: goal })
                 })
                 .then(res => res.json())
                 .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    if (!data.questions || data.questions.length === 0) throw new Error("Format kuis AI tidak valid.");
                     setQuiz(data.questions);
+                    setLoading(false);
+                })
+                .catch(err => {
+                    setErrorMessage(err.message || "Gagal memuat kuis dari AI.");
                     setLoading(false);
                 });
             };
 
-            const handleAnswer = (ans) => {
+            const handleAnswer = (selectedAns) => {
                 let newScore = score;
-                if (ans === quiz[currentIdx].correctAnswer) newScore++;
+                if (selectedAns === quiz[currentIdx].correctAnswer) {
+                    newScore++;
+                }
                 setScore(newScore);
 
                 if (currentIdx + 1 < quiz.length) {
                     setCurrentIdx(currentIdx + 1);
                 } else {
+                    setLoading(true);
+                    setStatusMessage("Mengevaluasi jawaban & memperbarui progress di Spreadsheet...");
                     evaluateLevel(newScore);
                 }
             };
 
-            // 3. Logika Otomatisasi Naik Level
+            // 3. Logika Naik Level Otomatis
             const evaluateLevel = (finalScore) => {
                 let newLevel = user.level;
+                // Jika benar semua, otomatis naik level belajarnya
                 if (finalScore === quiz.length) {
                     if (user.level === "Beginner") newLevel = "Intermediate";
                     else if (user.level === "Intermediate") newLevel = "Expert";
                 }
 
-                // Simpan otomatis ke Spreadsheet
                 fetch(API_URL, {
                     method: "POST",
+                    mode: "cors",
+                    headers: { "Content-Type": "text/plain" },
                     body: JSON.stringify({ 
                         action: "updateProgress", 
                         email: USER_EMAIL, 
                         newLevel: newLevel, 
                         newExp: parseInt(user.exp) + 50 
                     })
-                }).then(() => {
-                    alert(`Sesi selesai! Level kamu sekarang: ${newLevel}`);
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    alert(`Sesi Selesai! Skor: ${finalScore}/${quiz.length}.\nLevel kamu saat ini: ${newLevel}`);
+                    window.location.reload();
+                })
+                .catch(err => {
+                    alert("Gagal menyimpan progress: " + err.message);
                     window.location.reload();
                 });
             };
 
-            if (loading) return <div class="p-10 text-center">🤖 AI sedang menyiapkan materi sesuai level kamu...</div>;
+            // Tampilan jika terjadi Eror
+            if (errorMessage) {
+                return (
+                    <div class="max-w-md mx-auto mt-20 bg-red-50 border border-red-200 p-6 rounded-xl shadow-md text-center">
+                        <span class="text-4xl">⚠️</span>
+                        <h2 class="text-lg font-bold text-red-700 mt-2">Terjadi Hambatan Sistem</h2>
+                        <p class="text-sm text-red-600 mt-1 bg-white p-3 rounded border border-red-100 font-mono text-left overflow-auto">{errorMessage}</p>
+                        <button onClick={() => window.location.reload()} class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">Coba Muat Ulang</button>
+                    </div>
+                );
+            }
 
+            // Tampilan Loading
+            if (loading) {
+                return (
+                    <div class="flex flex-col items-center justify-center min-h-screen p-6">
+                        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+                        <p class="text-center text-gray-600 font-medium">{statusMessage}</p>
+                    </div>
+                );
+            }
+
+            // Tampilan Utama Kuis Adaptif
             return (
-                <div class="max-w-md mx-auto mt-10 bg-white p-6 rounded-xl shadow-lg">
-                    <div class="flex justify-between mb-4 border-b pb-2">
-                        <span class="font-bold">Level: {user.level}</span>
-                        <span class="text-blue-500">EXP: {user.exp}</span>
+                <div class="max-w-md mx-auto mt-16 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                    {/* Header Progress */}
+                    <div class="bg-gradient-to-r自动 from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-inner">
+                        <div>
+                            <p class="text-xs text-blue-100 uppercase tracking-wider font-semibold">Target Belajar</p>
+                            <h3 class="text-sm font-bold truncate max-w-[180px]">{user.goal}</h3>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs bg-white/20 px-2 py-1 rounded-md font-mono">EXP: {user.exp}</span>
+                            <span class="bg-yellow-400 text-slate-900 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide shadow-sm">
+                                {user.level}
+                            </span>
+                        </div>
                     </div>
                     
-                    <h2 class="text-xl font-semibold mb-4">{quiz[currentIdx].question}</h2>
-                    <div class="space-y-2">
-                        {quiz[currentIdx].options.map(opt => (
-                            <button 
-                                key={opt}
-                                onClick={() => handleAnswer(opt)}
-                                class="w-full p-3 text-left border rounded hover:bg-blue-50 transition"
-                            >
-                                {opt}
-                            </button>
-                        ))}
+                    {/* Progress Bar Kecil */}
+                    <div class="w-full bg-gray-100 h-1.5">
+                        <div class="bg-blue-500 h-1.5 transition-all duration-300" style={{ width: `${((currentIdx) / quiz.length) * 100}%` }}></div>
+                    </div>
+
+                    {/* Area Pertanyaan */}
+                    <div class="p-6">
+                        <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Pertanyaan {currentIdx + 1} dari {quiz.length}</span>
+                        <h2 class="text-lg font-bold text-gray-800 mt-1 mb-6 leading-snug">{quiz[currentIdx].question}</h2>
+                        
+                        {/* Pilihan Jawaban */}
+                        <div class="space-y-3">
+                            {quiz[currentIdx].options.map((opt, index) => (
+                                <button 
+                                    key={index}
+                                    onClick={() => handleAnswer(opt)}
+                                    class="w-full p-4 text-left border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100 font-medium text-gray-700 transition duration-150 shadow-sm flex items-center gap-3"
+                                >
+                                    <span class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">{String.fromCharCode(65 + index)}</span>
+                                    <span class="flex-1 text-sm">{opt}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
             );
