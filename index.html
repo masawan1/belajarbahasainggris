@@ -39,7 +39,7 @@
                 setLoading(true);
                 setError("");
 
-                // FIX: MENGUBAH v1beta MENJADI v1 AGAR DIKENALI OLEH MODEL GEMINI-1.5-FLASH
+                // FIX FORMAT URL: Menggunakan standard endpoint v1/models/gemini-1.5-flash tanpa tambahan titik dua di tengah
                 const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
                 const prompt = `Generate exactly 3 multiple-choice questions for an English learner at '${level}' level with focus on '${goal}'. 
