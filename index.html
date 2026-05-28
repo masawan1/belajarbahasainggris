@@ -4,18 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English Adaptive Learning</title>
-    <!-- React & Babel Player -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Library Google Gen AI versi Browser Global -->
-    <script type="module">
-        import { GoogleGenAI } from "https://esm.run/@google/generative-ai";
-        window.GoogleGenAI = GoogleGenAI; // Lempar ke objek global agar bisa diakses oleh Babel
-    </script>
+    <script src="https://unpkg.com/@google/generative-ai@0.1.1/dist/index.umd.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-800">
     <div id="root"></div>
@@ -40,27 +34,25 @@
 
             useEffect(() => {
                 localStorage.setItem("english_user", JSON.stringify(user));
-                
-                // Beri jeda 1 detik untuk memastikan GoogleGenAI sudah termuat sempurna di window
-                const timer = setTimeout(() => {
-                    loadQuizSDK(user.level, user.goal);
-                }, 1000);
-                
-                return () => clearTimeout(timer);
+                loadQuizSDK(user.level, user.goal);
             }, [user.level]);
 
             const loadQuizSDK = async (level, goal) => {
-                if (!window.GoogleGenAI) {
-                    setError("Menunggu pustaka Google AI dimuat... Silakan muat ulang halaman.");
+                setLoading(true);
+                setError("");
+
+                // Membaca library obyek global yang dipasang oleh script UNPKG di atas
+                const aiLibrary = window.GoogleGenerativeAI;
+                
+                if (!aiLibrary) {
+                    setError("Pustaka Google AI gagal terpasang. Periksa apakah ekstensi adblocker memblokir script.");
                     setLoading(false);
                     return;
                 }
 
-                setLoading(true);
-                setError("");
-
                 try {
-                    const ai = new window.GoogleGenAI({ apiKey: GEMINI_API_KEY });
+                    // Inisialisasi model menggunakan standar SDK global
+                    const ai = new aiLibrary.GoogleGenAI({ apiKey: GEMINI_API_KEY });
                     const model = ai.getGenerativeModel({ 
                         model: "gemini-1.5-flash",
                         generationConfig: { responseMimeType: "application/json" }
@@ -79,7 +71,7 @@
                     setLoading(false);
                 } catch (err) {
                     console.error(err);
-                    setError("Gagal merancang materi otomatis via Google SDK. Coba ketuk tombol di bawah.");
+                    setError("Gagal merancang materi otomatis via Google AI. Coba klik tombol di bawah untuk memuat ulang.");
                     setLoading(false);
                 }
             };
@@ -144,7 +136,7 @@
                         
                         <div class="space-y-3">
                             {quiz[currentIdx].options.map((opt, i) => (
-                                <button key={i} onClick={() => handleAnswer(opt)} class="w-full p-4 text-left border rounded-xl hover:bg-blue-50 hover:border-blue-300 font-medium text-gray-700 transition shadow-sm flex items-center gap-3 text-sm">
+                                <button key={i} onClick={() => handleAnswer(opt)} class="w-full p-4 text-left border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 font-medium text-gray-700 transition shadow-sm flex items-center gap-3 text-sm">
                                     <span class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
                                     <span class="flex-1">{opt}</span>
                                 </button>
